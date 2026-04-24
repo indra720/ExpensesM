@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import AddExpenseModal from "../components/AddExpenseModal";
+import { useExpenses } from "../context/ExpenseContext";
 
 const StatCard = ({ title, amount, trend, trendUp, icon: Icon }) => (
   <div className="bg-white p-6 rounded-2xl md:rounded-2.5rem border border-stone-100 shadow-sm hover:shadow-xl transition-all duration-500 group">
@@ -41,36 +42,31 @@ const StatCard = ({ title, amount, trend, trendUp, icon: Icon }) => (
 
 const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { expenses } = useExpenses();
 
-  const transactions = [
-    {
-      id: 1,
-      title: "Starbucks Coffee",
-      category: "Fooding",
-      amount: "₹12.50",
-      date: "Oct 22, 2023",
-      icon: Coffee,
-      color: "text-[#8B5E3C]",
-    },
-    {
-      id: 2,
-      title: "Uber Ride",
-      category: "Transport",
-      amount: "₹24.00",
-      date: "Oct 21, 2023",
-      icon: Car,
-      color: "text-stone-600",
-    },
-    {
-      id: 3,
-      title: "Grocery Shopping",
-      category: "Others",
-      amount: "₹85.20",
-      date: "Oct 20, 2023",
-      icon: ShoppingBag,
-      color: "text-emerald-600",
-    },
-  ];
+  const getIcon = (category) => {
+    switch (category) {
+      case 'Fooding': return Coffee;
+      case 'Local Transport': return Car;
+      case 'Travelling': return TrendingUp;
+      default: return ShoppingBag;
+    }
+  };
+
+  const getColor = (category) => {
+    switch (category) {
+      case 'Fooding': return 'text-[#8B5E3C]';
+      case 'Local Transport': return 'text-stone-600';
+      case 'Travelling': return 'text-emerald-600';
+      default: return 'text-blue-600';
+    }
+  };
+
+  // Calculate stats
+  const totalSpent = expenses.reduce((acc, exp) => acc + exp.amount, 0);
+  const monthlySpent = expenses
+    .filter(exp => new Date(exp.date).getMonth() === new Date().getMonth())
+    .reduce((acc, exp) => acc + exp.amount, 0);
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] flex flex-col lg:flex-row">
@@ -85,7 +81,7 @@ const Dashboard = () => {
             </h1>
             <p className="text-stone-500 font-medium mt-1 flex items-center gap-2 text-sm">
               <Calendar className="w-4 h-4" />
-              Wednesday, 22 April 2026
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
 
@@ -103,30 +99,30 @@ const Dashboard = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-5">
           <StatCard
-            title="Total Balance"
-            amount="₹12,450"
-            trend="+12.5%"
+            title="Total Spent"
+            amount={`₹${totalSpent.toLocaleString()}`}
+            trend="+0.0%"
             trendUp={true}
             icon={Wallet}
           />
           <StatCard
             title="Monthly Spent"
-            amount="₹3,240"
-            trend="-2.4%"
-            trendUp={false}
+            amount={`₹${monthlySpent.toLocaleString()}`}
+            trend="Current"
+            trendUp={true}
             icon={TrendingUp}
           />
           <StatCard
-            title="Active Projects"
-            amount="12"
-            trend="+3"
+            title="Transactions"
+            amount={expenses.length}
+            trend={`+${expenses.length}`}
             trendUp={true}
             icon={Briefcase}
           />
           <StatCard
-            title="Budget Left"
-            amount="₹850"
-            trend="On Track"
+            title="Avg. Expense"
+            amount={`₹${expenses.length > 0 ? (totalSpent / expenses.length).toFixed(2) : 0}`}
+            trend="Live"
             trendUp={true}
             icon={BarChart3}
           />
@@ -147,40 +143,48 @@ const Dashboard = () => {
             <div className="overflow-x-auto -mx-2 px-2 pb-4">
               <div className="inline-block min-w-full  align-middle">
                 <div className="space-y-4">
-                  {transactions.map((t) => (
-                    <div
-                      key={t.id}
-                      className="min-w-75 bg-white p-4 md:p-5 rounded-2xl md:rounded-[4xl] border border-stone-100 flex items-center justify-between group hover:border-[#8B5E3C] transition-all shadow-sm"
-                    >
-                      <div className="flex items-center gap-4">
+                  {expenses.length === 0 ? (
+                    <p className="text-center py-10 text-stone-400 font-medium">No transactions yet. Add your first expense!</p>
+                  ) : (
+                    expenses.slice(0, 5).map((t) => {
+                      const Icon = getIcon(t.category);
+                      return (
                         <div
-                          className={`w-10 h-10 md:w-12 md:h-12 bg-stone-50 rounded-xl md:rounded-2xl flex items-center justify-center ${t.color}`}
+                          key={t.id}
+                          className="min-w-75 bg-white p-4 md:p-5 rounded-2xl md:rounded-[4xl] border border-stone-100 flex items-center justify-between group hover:border-[#8B5E3C] transition-all shadow-sm"
                         >
-                          <t.icon className="w-5 h-5" />
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`w-10 h-10 md:w-12 md:h-12 bg-stone-50 rounded-xl md:rounded-2xl flex items-center justify-center ${getColor(t.category)}`}
+                            >
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#3D2B1F] text-sm md:text-base group-hover:text-[#8B5E3C] transition-colors">
+                                {t.title}
+                              </p>
+                              <p className="text-[10px] md:text-xs text-stone-400 font-medium">
+                                {t.category} • {new Date(t.date).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-base md:text-lg font-bold text-[#3D2B1F]">
+                              ₹{t.amount}
+                            </span>
+                            <button className="p-1.5 text-stone-300 hover:text-stone-600 transition-colors">
+                              <MoreHorizontal className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-[#3D2B1F] text-sm md:text-base group-hover:text-[#8B5E3C] transition-colors">
-                            {t.title}
-                          </p>
-                          <p className="text-[10px] md:text-xs text-stone-400 font-medium">
-                            {t.category} • {t.date}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-base md:text-lg font-bold text-[#3D2B1F]">
-                          {t.amount}
-                        </span>
-                        <button className="p-1.5 text-stone-300 hover:text-stone-600 transition-colors">
-                          <MoreHorizontal className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
           </section>
+          {/* ... (rest of the component like Spending Breakdown) */}
 
           {/* Category Breakdown */}
           <section>

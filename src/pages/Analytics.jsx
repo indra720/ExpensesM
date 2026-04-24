@@ -23,25 +23,56 @@ import {
   Filter
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import { useExpenses } from '../context/ExpenseContext';
 
 const Analytics = () => {
-  const barData = [
-    { name: 'Jan', amount: 45000 },
-    { name: 'Feb', amount: 52000 },
-    { name: 'Mar', amount: 38000 },
-    { name: 'Apr', amount: 65000 },
-    { name: 'May', amount: 48000 },
-    { name: 'Jun', amount: 59000 },
+  const { expenses } = useExpenses();
+
+  // Process data for Bar Chart (Last 6 Months)
+  const getMonthlyData = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const last6Months = [];
+    const now = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthName = months[d.getMonth()];
+      const amount = expenses
+        .filter(exp => {
+          const expDate = new Date(exp.date);
+          return expDate.getMonth() === d.getMonth() && expDate.getFullYear() === d.getFullYear();
+        })
+        .reduce((sum, exp) => sum + exp.amount, 0);
+      
+      last6Months.push({ name: monthName, amount });
+    }
+    return last6Months;
+  };
+
+  // Process data for Pie Chart (Category Breakdown)
+  const getCategoryData = () => {
+    const categoryTotals = expenses.reduce((acc, exp) => {
+      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+      return acc;
+    }, {});
+
+    const total = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
+
+    return Object.keys(categoryTotals).map(cat => ({
+      name: cat,
+      value: total > 0 ? Math.round((categoryTotals[cat] / total) * 100) : 0,
+      rawAmount: categoryTotals[cat]
+    }));
+  };
+
+  const barData = getMonthlyData();
+  const pieData = getCategoryData().length > 0 ? getCategoryData() : [
+    { name: 'No Data', value: 100 }
   ];
 
-  const pieData = [
-    { name: 'Fooding', value: 35 },
-    { name: 'Transport', value: 25 },
-    { name: 'Travelling', value: 20 },
-    { name: 'Others', value: 20 },
-  ];
+  const COLORS = ['#3D2B1F', '#8B5E3C', '#A67B5B', '#D9C5B2', '#5C4033'];
 
-  const COLORS = ['#3D2B1F', '#8B5E3C', '#A67B5B', '#D9C5B2'];
+  const totalSpent = expenses.reduce((acc, exp) => acc + exp.amount, 0);
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] flex">
@@ -73,7 +104,7 @@ const Analytics = () => {
               <h2 className="text-xl font-bold text-[#3D2B1F]">Monthly Spends</h2>
               <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
                 <TrendingUp className="w-4 h-4" />
-                +14.2% from last period
+                Live Tracking
               </div>
             </div>
             <div className="h-80 w-full">
@@ -130,11 +161,11 @@ const Analytics = () => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 h-40 overflow-y-auto no-scrollbar">
               {pieData.map((item, index) => (
                 <div key={item.name} className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index] }} />
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                     <span className="text-sm font-medium text-stone-500">{item.name}</span>
                   </div>
                   <span className="text-sm font-bold text-[#3D2B1F]">{item.value}%</span>
@@ -148,12 +179,12 @@ const Analytics = () => {
         <div className="bg-[#3D2B1F] p-10 rounded-[2.5rem] text-white shadow-xl shadow-stone-300">
           <div className="flex justify-between items-center mb-10">
             <div>
-              <h2 className="text-2xl font-bold">Expense Forecasting</h2>
-              <p className="text-stone-400 text-sm mt-1 font-medium">Predicted spending for the next 3 months</p>
+              <h2 className="text-2xl font-bold">Spending Trend</h2>
+              <p className="text-stone-400 text-sm mt-1 font-medium">Visual representation of your cash flow</p>
             </div>
             <div className="text-right">
-              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Total Estimated</p>
-              <h3 className="text-3xl font-extrabold">₹1,85,000</h3>
+              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Total Expenses</p>
+              <h3 className="text-3xl font-extrabold">₹{totalSpent.toLocaleString()}</h3>
             </div>
           </div>
           <div className="h-48 w-full opacity-80">

@@ -12,13 +12,17 @@ import {
   Car,
   MoreHorizontal
 } from 'lucide-react';
+import { useExpenses } from '../context/ExpenseContext';
 
 const AddExpenseModal = ({ isOpen, onClose }) => {
+  const { addExpense } = useExpenses();
   const [formData, setFormData] = useState({
     title: '',
     amount: '',
     category: '',
     subcategory: '',
+    type: 'Personal', // New field
+    projectName: '', // For project expenses
     date: new Date().toISOString().split('T')[0],
     notes: ''
   });
@@ -27,12 +31,23 @@ const AddExpenseModal = ({ isOpen, onClose }) => {
     'Travelling': ['Bus', 'Train', 'Flight'],
     'Local Transport': ['Cab', 'Auto', 'Rickshaw', 'Local Bus'],
     'Fooding': ['Restaurant', 'Snacks', 'Groceries'],
+    'Infrastructure': ['Materials', 'Labor', 'Equipment'], // Added for projects
     'Others': ['Custom']
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Expense Saved:', formData);
+    addExpense(formData);
+    setFormData({
+      title: '',
+      amount: '',
+      category: '',
+      subcategory: '',
+      type: 'Personal',
+      projectName: '',
+      date: new Date().toISOString().split('T')[0],
+      notes: ''
+    });
     onClose();
   };
 
@@ -54,7 +69,7 @@ const AddExpenseModal = ({ isOpen, onClose }) => {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative w-full max-w-lg h-98 overflow-y-auto no-scrollbar md:h-full  bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-stone-100"
+            className="relative w-full max-w-lg h-[90vh] overflow-y-auto no-scrollbar bg-white rounded-[2.5rem] shadow-2xl border border-stone-100"
           >
             {/* Header */}
             <div className="px-8 py-6 bg-stone-50 border-b border-stone-100 flex justify-between items-center">
@@ -72,6 +87,39 @@ const AddExpenseModal = ({ isOpen, onClose }) => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-8 space-y-5">
+              {/* Type Toggle */}
+              <div className="flex bg-stone-50 p-1 rounded-2xl border border-stone-100">
+                {['Personal', 'Project'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setFormData({...formData, type: t})}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      formData.type === t 
+                        ? 'bg-[#3D2B1F] text-white shadow-md' 
+                        : 'text-stone-400 hover:text-[#3D2B1F]'
+                    }`}
+                  >
+                    {t} Expense
+                  </button>
+                ))}
+              </div>
+
+              {formData.type === 'Project' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1">Project Name</label>
+                  <select 
+                    required
+                    className="w-full bg-stone-50 border border-stone-100 text-[#3D2B1F] rounded-2xl py-3 px-4 outline-none focus:border-[#8B5E3C] transition-all text-sm font-medium appearance-none cursor-pointer"
+                    onChange={(e) => setFormData({...formData, projectName: e.target.value})}
+                  >
+                    <option value="">Select Project</option>
+                    <option value="Eco Resort">Eco Resort</option>
+                    <option value="App Revamp">App Revamp</option>
+                    <option value="Marketing">Marketing</option>
+                  </select>
+                </div>
+              )}
               {/* Title & Amount */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

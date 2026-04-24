@@ -6,19 +6,41 @@ import {
   MoreVertical,
   Building2,
   Globe,
-  Layers
+  Layers,
+  Trash2
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import AddExpenseModal from '../components/AddExpenseModal';
+import { useExpenses } from '../context/ExpenseContext';
 
 const ProjectExpenses = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const { expenses, deleteExpense } = useExpenses();
 
-  const projects = [
-    { id: 1, name: 'Eco Resort', category: 'Infrastructure', spent: '₹4,50,000', budget: '₹10,00,000', status: 'In Progress', icon: Building2, color: 'text-[#8B5E3C]' },
-    { id: 2, name: 'App Revamp', category: 'Software', spent: '₹1,20,000', budget: '₹2,00,000', status: 'Completed', icon: Globe, color: 'text-stone-600' },
-    { id: 3, name: 'Marketing', category: 'Marketing', spent: '₹75,000', budget: '₹1,50,000', status: 'In Progress', icon: Layers, color: 'text-stone-400' },
+  // Project definitions with budgets
+  const initialProjects = [
+    { id: 'Eco Resort', name: 'Eco Resort', category: 'Infrastructure', budget: 1000000, icon: Building2, color: 'text-[#8B5E3C]' },
+    { id: 'App Revamp', name: 'App Revamp', category: 'Software', budget: 200000, icon: Globe, color: 'text-stone-600' },
+    { id: 'Marketing', name: 'Marketing', category: 'Marketing', budget: 150000, icon: Layers, color: 'text-stone-400' },
   ];
+
+  // Calculate project spent amounts
+  const projects = initialProjects.map(p => {
+    const spent = expenses
+      .filter(exp => exp.type === 'Project' && exp.projectName === p.name)
+      .reduce((sum, exp) => sum + exp.amount, 0);
+    
+    const percentage = p.budget > 0 ? Math.min((spent / p.budget) * 100, 100) : 0;
+    
+    return { ...p, spent, percentage };
+  });
+
+  const projectBillings = expenses.filter(exp => 
+    exp.type === 'Project' && 
+    (exp.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     exp.projectName.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] flex flex-col md:flex-row">
@@ -51,9 +73,9 @@ const ProjectExpenses = () => {
                   <project.icon className="w-6 h-6 md:w-7 md:h-7" />
                 </div>
                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  project.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-100 text-[#3D2B1F]'
+                  project.percentage >= 100 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
                 }`}>
-                  {project.status}
+                  {project.percentage >= 100 ? 'Budget Exceeded' : 'On Track'}
                 </span>
               </div>
               <h3 className="text-lg md:text-xl font-bold text-[#3D2B1F] mb-1">{project.name}</h3>
@@ -62,14 +84,19 @@ const ProjectExpenses = () => {
               <div className="space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-stone-400 font-medium">Spent</span>
-                  <span className="text-[#3D2B1F] font-bold">{project.spent}</span>
+                  <span className="text-[#3D2B1F] font-bold">₹{project.spent.toLocaleString()}</span>
                 </div>
                 <div className="w-full bg-stone-50 h-2 rounded-full overflow-hidden">
-                  <div className="bg-[#8B5E3C] h-full rounded-full" style={{ width: '45%' }} />
+                  <div 
+                    className={`h-full rounded-full transition-all duration-1000 ${project.percentage > 90 ? 'bg-rose-500' : 'bg-[#8B5E3C]'}`} 
+                    style={{ width: `${project.percentage}%` }} 
+                  />
                 </div>
                 <div className="flex justify-between text-[10px] md:text-xs">
-                  <span className="text-stone-400">Target: {project.budget}</span>
-                  <span className="text-[#8B5E3C] font-bold">45%</span>
+                  <span className="text-stone-400">Budget: ₹{project.budget.toLocaleString()}</span>
+                  <span className={`${project.percentage > 90 ? 'text-rose-600' : 'text-[#8B5E3C]'} font-bold`}>
+                    {project.percentage.toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </div>
@@ -82,7 +109,13 @@ const ProjectExpenses = () => {
             <h2 className="text-sm md:text-xl font-bold text-[#3D2B1F]">Recent Project Billings</h2>
             <div className="w-full md:w-auto relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
-              <input type="text" placeholder="Search billings..." className="w-full md:w-auto pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-100 rounded-xl text-xs outline-none focus:border-[#8B5E3C] transition-all" />
+              <input 
+                type="text" 
+                placeholder="Search billings..." 
+                className="w-full md:w-auto pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-100 rounded-xl text-xs outline-none focus:border-[#8B5E3C] transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -90,31 +123,35 @@ const ProjectExpenses = () => {
               <thead className="bg-stone-50/50">
                 <tr className="border-b border-stone-100">
                   <th className="px-8 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest">Project</th>
-                  <th className="px-8 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest">Vendor/Title</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest">Title</th>
                   <th className="px-8 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest">Category</th>
                   <th className="px-8 py-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest">Amount</th>
-                  <th className="px-8 py-4 text-center"></th>
+                  <th className="px-8 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
-                <tr className="group hover:bg-stone-50/30 transition-colors">
-                  <td className="px-8 py-5 text-sm font-bold text-[#3D2B1F]">Eco Resort</td>
-                  <td className="px-8 py-5 text-sm font-medium text-stone-600">Timber Supply</td>
-                  <td className="px-8 py-5 text-sm font-medium text-stone-400">Materials</td>
-                  <td className="px-8 py-5 text-sm font-bold text-[#3D2B1F]">₹45,000</td>
-                  <td className="px-8 py-5 text-center">
-                    <button className="p-2 text-stone-300 hover:text-stone-600 transition-colors"><MoreVertical className="w-5 h-5" /></button>
-                  </td>
-                </tr>
-                <tr className="group hover:bg-stone-50/30 transition-colors">
-                  <td className="px-8 py-5 text-sm font-bold text-[#3D2B1F]">App Revamp</td>
-                  <td className="px-8 py-5 text-sm font-medium text-stone-600">Cloud Hosting</td>
-                  <td className="px-8 py-5 text-sm font-medium text-stone-400">Infrastructure</td>
-                  <td className="px-8 py-5 text-sm font-bold text-[#3D2B1F]">₹12,400</td>
-                  <td className="px-8 py-5 text-center">
-                    <button className="p-2 text-stone-300 hover:text-stone-600 transition-colors"><MoreVertical className="w-5 h-5" /></button>
-                  </td>
-                </tr>
+                {projectBillings.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-8 py-10 text-center text-stone-400 font-medium">No project billings found.</td>
+                  </tr>
+                ) : (
+                  projectBillings.map((bill) => (
+                    <tr key={bill.id} className="group hover:bg-stone-50/30 transition-colors">
+                      <td className="px-8 py-5 text-sm font-bold text-[#3D2B1F]">{bill.projectName}</td>
+                      <td className="px-8 py-5 text-sm font-medium text-stone-600">{bill.title}</td>
+                      <td className="px-8 py-5 text-sm font-medium text-stone-400">{bill.category}</td>
+                      <td className="px-8 py-5 text-sm font-bold text-[#3D2B1F]">₹{bill.amount.toLocaleString()}</td>
+                      <td className="px-8 py-5 text-center">
+                        <button 
+                          onClick={() => { if(window.confirm('Delete this billing?')) deleteExpense(bill.id) }}
+                          className="p-2 text-stone-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
